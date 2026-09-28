@@ -87,8 +87,9 @@ fi
 if [ "$failed" -eq 0 ] && [ "${SKIP_CONNECTIVITY_CHECKS:-0}" != 1 ]; then
     username=$(config_get "$tmp/global" OBSERVABILITY_USERNAME)
     password=$(config_get "$tmp/global" OBSERVABILITY_PASSWORD)
-    check_endpoint_code Prometheus "$(curl_endpoint_status "$(config_get "$tmp/global" PROMETHEUS_WRITE_URL)" "$username" "$password")" || failed=1
-    check_endpoint_code Loki "$(curl_endpoint_status "$(config_get "$tmp/global" LOKI_WRITE_URL)" "$username" "$password")" || failed=1
+    auth_enabled=$(config_get "$tmp/global" OBSERVABILITY_AUTH_ENABLED)
+    check_endpoint_code Prometheus "$(curl_endpoint_status "$(config_get "$tmp/global" PROMETHEUS_WRITE_URL)" "$username" "$password" "$auth_enabled")" || failed=1
+    check_endpoint_code Loki "$(curl_endpoint_status "$(config_get "$tmp/global" LOKI_WRITE_URL)" "$username" "$password" "$auth_enabled")" || failed=1
     if curl -fsS -o /dev/null --connect-timeout 8 --max-time 15 "$(config_get "$tmp/global" GRAFANA_URL)"; then
         ok 'Grafana DNS/TLS/connectivity check passed'
     else

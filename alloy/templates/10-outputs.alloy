@@ -2,10 +2,12 @@
 prometheus.remote_write "central" {
   endpoint {
     url = sys.env("PROMETHEUS_WRITE_URL")
+    // AUTH_BEGIN
     basic_auth {
       username = sys.env("OBSERVABILITY_USERNAME")
       password = sys.env("OBSERVABILITY_PASSWORD")
     }
+    // AUTH_END
     tls_config { insecure_skip_verify = false }
   }
 }
@@ -27,10 +29,12 @@ loki.process "identity" {
 loki.write "central" {
   endpoint {
     url = sys.env("LOKI_WRITE_URL")
+    // AUTH_BEGIN
     basic_auth {
       username = sys.env("OBSERVABILITY_USERNAME")
       password = sys.env("OBSERVABILITY_PASSWORD")
     }
+    // AUTH_END
     tls_config { insecure_skip_verify = false }
   }
 }

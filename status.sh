@@ -9,8 +9,9 @@ if config_parse "$PROJECT_ROOT/.env" "$GLOBAL_KEYS" "$tmp" 2>/dev/null; then
     grafana=$(config_get "$tmp" GRAFANA_URL); address=$(config_get "$tmp" ALLOY_HTTP_ADDRESS)
     central_user=$(config_get "$tmp" OBSERVABILITY_USERNAME)
     central_password=$(config_get "$tmp" OBSERVABILITY_PASSWORD)
-    prometheus_code=$(curl_endpoint_status "$(config_get "$tmp" PROMETHEUS_WRITE_URL)" "$central_user" "$central_password")
-    loki_code=$(curl_endpoint_status "$(config_get "$tmp" LOKI_WRITE_URL)" "$central_user" "$central_password")
+    auth_enabled=$(config_get "$tmp" OBSERVABILITY_AUTH_ENABLED)
+    prometheus_code=$(curl_endpoint_status "$(config_get "$tmp" PROMETHEUS_WRITE_URL)" "$central_user" "$central_password" "$auth_enabled")
+    loki_code=$(curl_endpoint_status "$(config_get "$tmp" LOKI_WRITE_URL)" "$central_user" "$central_password" "$auth_enabled")
 else
     host_id='configuration unavailable'; environment='configuration unavailable'
     grafana='configuration unavailable'; address='127.0.0.1:12345'

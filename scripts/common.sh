@@ -2,7 +2,7 @@
 
 # Shared POSIX helpers. Configuration files are parsed as data and never sourced.
 PROJECT_ROOT=${PROJECT_ROOT:-$(CDPATH='' cd -- "$(dirname "$0")/.." 2>/dev/null && pwd)}
-GLOBAL_KEYS='HOST_ID ENVIRONMENT REGION DATACENTER GRAFANA_URL PROMETHEUS_WRITE_URL LOKI_WRITE_URL OBSERVABILITY_USERNAME OBSERVABILITY_PASSWORD TLS_INSECURE_SKIP_VERIFY ENABLE_HOST_METRICS ENABLE_DOCKER_METRICS ENABLE_DOCKER_LOGS DOCKER_HOST ENABLE_NGINX_LOGS NGINX_ACCESS_LOG NGINX_ERROR_LOG ENABLE_BEYLA BEYLA_CONTAINERS_ONLY BEYLA_OPEN_PORTS ALLOY_HTTP_ADDRESS'
+GLOBAL_KEYS='HOST_ID ENVIRONMENT REGION DATACENTER GRAFANA_URL PROMETHEUS_WRITE_URL LOKI_WRITE_URL OBSERVABILITY_AUTH_ENABLED OBSERVABILITY_USERNAME OBSERVABILITY_PASSWORD TLS_INSECURE_SKIP_VERIFY ENABLE_HOST_METRICS ENABLE_DOCKER_METRICS ENABLE_DOCKER_LOGS DOCKER_HOST ENABLE_NGINX_LOGS NGINX_ACCESS_LOG NGINX_ERROR_LOG ENABLE_BEYLA BEYLA_CONTAINERS_ONLY BEYLA_OPEN_PORTS ALLOY_HTTP_ADDRESS'
 POSTGRES_KEYS='NAME DSN AUTODISCOVERY APP SERVICE'
 MYSQL_KEYS='NAME DSN APP SERVICE'
 REDIS_KEYS='NAME ADDRESS USERNAME PASSWORD APP SERVICE'
@@ -15,6 +15,12 @@ error() { log ERROR "$@" >&2; }
 die() { error "$@"; exit 1; }
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 is_true() { [ "${1:-}" = true ]; }
+is_loopback_url() {
+    case $1 in
+        http://127.0.0.1|http://127.0.0.1/*|http://127.0.0.1:*|http://localhost|http://localhost/*|http://localhost:*|https://127.0.0.1|https://127.0.0.1/*|https://127.0.0.1:*|https://localhost|https://localhost/*|https://localhost:*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 config_parse() (
     input=$1 allowed=$2 output=$3
@@ -71,16 +77,30 @@ validate_open_ports() (
 
 validate_global_config() (
     parsed=$1 failed=0
-    for key in HOST_ID ENVIRONMENT GRAFANA_URL PROMETHEUS_WRITE_URL LOKI_WRITE_URL OBSERVABILITY_USERNAME OBSERVABILITY_PASSWORD; do
+    for key in HOST_ID ENVIRONMENT GRAFANA_URL PROMETHEUS_WRITE_URL LOKI_WRITE_URL; do
         require_config "$parsed" "$key" || failed=1
     done
     host_id=$(config_get "$parsed" HOST_ID)
     case $host_id in *[!a-zA-Z0-9_.-]*|'') error 'HOST_ID may contain only letters, numbers, dot, underscore, and hyphen'; failed=1 ;; esac
     environment=$(config_get "$parsed" ENVIRONMENT)
     case $environment in *[!a-zA-Z0-9_.-]*|'') error 'ENVIRONMENT may contain only letters, numbers, dot, underscore, and hyphen'; failed=1 ;; esac
-    [ "$(config_get "$parsed" OBSERVABILITY_PASSWORD)" != CHANGE_ME ] || { error 'OBSERVABILITY_PASSWORD still uses CHANGE_ME'; failed=1; }
+    auth_enabled=$(config_get "$parsed" OBSERVABILITY_AUTH_ENABLED)
+    validate_bool OBSERVABILITY_AUTH_ENABLED "$auth_enabled" || failed=1
+    if is_true "$auth_enabled"; then
+        require_config "$parsed" OBSERVABILITY_USERNAME || failed=1
+        require_config "$parsed" OBSERVABILITY_PASSWORD || failed=1
+        [ "$(config_get "$parsed" OBSERVABILITY_PASSWORD)" != CHANGE_ME ] || { error 'OBSERVABILITY_PASSWORD still uses CHANGE_ME'; failed=1; }
+    else
+        for key in PROMETHEUS_WRITE_URL LOKI_WRITE_URL; do
+            is_loopback_url "$(config_get "$parsed" "$key")" || { error "OBSERVABILITY_AUTH_ENABLED=false is allowed only for loopback ingestion URLs"; failed=1; }
+        done
+    fi
     for key in GRAFANA_URL PROMETHEUS_WRITE_URL LOKI_WRITE_URL; do
-        value=$(config_get "$parsed" "$key"); case $value in https://*) ;; *) error "$key must use HTTPS"; failed=1 ;; esac
+        value=$(config_get "$parsed" "$key")
+        case $value in
+            https://*) ;;
+            *) is_loopback_url "$value" || { error "$key must use HTTPS unless it targets 127.0.0.1 or localhost"; failed=1; } ;;
+        esac
     done
     for key in TLS_INSECURE_SKIP_VERIFY ENABLE_HOST_METRICS ENABLE_DOCKER_METRICS ENABLE_DOCKER_LOGS ENABLE_NGINX_LOGS ENABLE_BEYLA BEYLA_CONTAINERS_ONLY; do
         validate_bool "$key" "$(config_get "$parsed" "$key")" || failed=1
@@ -150,13 +170,17 @@ version_lt_5_11() (
     [ "$major" -lt 5 ] || { [ "$major" -eq 5 ] && [ "$minor" -lt 11 ]; }
 )
 curl_endpoint_status() (
-    url=$1 username=$2 password=$3
+    url=$1 username=$2 password=$3 auth_enabled=$4
     auth_file=$(mktemp)
     trap 'rm -f "$auth_file"' EXIT HUP INT TERM
     chmod 600 "$auth_file"
-    escaped_user=$(printf '%s' "$username" | sed 's/\\/\\\\/g; s/"/\\"/g')
-    escaped_password=$(printf '%s' "$password" | sed 's/\\/\\\\/g; s/"/\\"/g')
-    printf 'user = "%s:%s"\n' "$escaped_user" "$escaped_password" >"$auth_file"
+    if is_true "$auth_enabled"; then
+        escaped_user=$(printf '%s' "$username" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        escaped_password=$(printf '%s' "$password" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        printf 'user = "%s:%s"\n' "$escaped_user" "$escaped_password" >"$auth_file"
+    else
+        : >"$auth_file"
+    fi
     status=$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 8 --max-time 15 --config "$auth_file" -X POST "$url" 2>/dev/null) || status=000
     printf '%s' "$status"
 )

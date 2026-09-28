@@ -41,6 +41,17 @@ The local Alloy interface is bound to `127.0.0.1:12345`. Do not expose it public
 
 Never commit `.env` or files under `instances/*/*.env`. Each database file describes one independently reachable server; PostgreSQL autodiscovery can collect all logical databases on that server. See [configuration](docs/configuration.md), [database monitoring](docs/database-monitoring.md), and [Docker conventions](docs/docker-labels.md).
 
+When installing on the VPS that hosts Grafana, Prometheus, and Loki, direct loopback endpoints are supported:
+
+```sh
+cp examples/central-vps.example.env .env
+nano .env
+sudo sh check-configs.sh
+sudo sh start.sh
+```
+
+Plain HTTP and disabled Basic Auth are accepted only for loopback ingestion URLs. Remote endpoints must continue to use HTTPS and, by default, per-host Basic Auth.
+
 ## Design and operations
 
 - [Architecture](docs/architecture.md)

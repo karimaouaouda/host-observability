@@ -15,6 +15,7 @@ validate_global_config "$parsed"
 
 host_id=$(config_get "$parsed" HOST_ID)
 environment=$(config_get "$parsed" ENVIRONMENT)
+auth_enabled=$(config_get "$parsed" OBSERVABILITY_AUTH_ENABLED)
 access_log=$(config_get "$parsed" NGINX_ACCESS_LOG)
 error_log=$(config_get "$parsed" NGINX_ERROR_LOG)
 open_ports=$(config_get "$parsed" BEYLA_OPEN_PORTS)
@@ -32,6 +33,12 @@ copy_template 00-base.alloy
 copy_template 10-outputs.alloy
 replace_token "$output/10-outputs.alloy" HOST_ID "$(alloy_escape "$host_id")"
 replace_token "$output/10-outputs.alloy" ENVIRONMENT "$(alloy_escape "$environment")"
+if is_true "$auth_enabled"; then
+    sed '/\/\/ AUTH_BEGIN/d; /\/\/ AUTH_END/d' "$output/10-outputs.alloy" >"$output/10-outputs.alloy.tmp"
+else
+    sed '/\/\/ AUTH_BEGIN/,/\/\/ AUTH_END/d' "$output/10-outputs.alloy" >"$output/10-outputs.alloy.tmp"
+fi
+mv "$output/10-outputs.alloy.tmp" "$output/10-outputs.alloy"
 
 is_true "$(config_get "$parsed" ENABLE_HOST_METRICS)" && copy_template 20-host.alloy
 is_true "$(config_get "$parsed" ENABLE_DOCKER_METRICS)" && copy_template 30-docker-metrics.alloy

@@ -27,4 +27,14 @@ if "$alloy_bin" validate "$tmp/rendered"; then
 else
     fail 'Alloy accepts the complete generated configuration'
 fi
+
+cp examples/central-vps.example.env .env
+PROJECT_ROOT=$PWD sh scripts/render-config.sh "$tmp/loopback-rendered" >/dev/null
+export_runtime_environment "$PWD"
+for config in "$tmp/loopback-rendered/"*.alloy; do "$alloy_bin" fmt --write "$config" >/dev/null; done
+if "$alloy_bin" validate "$tmp/loopback-rendered"; then
+    pass 'Alloy accepts auth-free central VPS loopback configuration'
+else
+    fail 'Alloy accepts auth-free central VPS loopback configuration'
+fi
 finish

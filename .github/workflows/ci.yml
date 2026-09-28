@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: POSIX shell syntax
+        run: find . -type f -name '*.sh' -print0 | xargs -0 -n1 sh -n
+      - name: ShellCheck
+        run: |
+          scripts=$(find . -type f -name '*.sh' -print)
+          docker run --rm -v "$PWD:$PWD:ro" -w "$PWD" koalaman/shellcheck:stable --severity=warning -x $scripts
+      - name: Unit and acceptance tests
+        run: sh tests/run.sh
+      - name: Download pinned Alloy validator
+        run: |
+          curl -fsSL https://github.com/grafana/alloy/releases/download/v1.20.0/alloy-1.20.0-1.amd64.deb -o /tmp/alloy.deb
+          dpkg-deb -x /tmp/alloy.deb /tmp/alloy
+      - name: Validate generated Alloy configuration
+        env:
+          ALLOY_BIN: /tmp/alloy/usr/bin/alloy
+        run: sh tests/test_alloy.sh

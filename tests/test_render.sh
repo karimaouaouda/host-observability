@@ -44,4 +44,11 @@ assert_not_contains 'does not embed database DSN' "$out1/70-postgres-app_db.allo
 assert_file_contains 'writes runtime DB secret' "$out1/agent.env" 'POSTGRES_APP_DB_DSN="postgresql://monitor:secret'
 assert_file_contains 'binds local Alloy listener' "$out1/alloy.defaults" '--server.http.listen-addr=127.0.0.1:12345'
 
+sed -i 's/OBSERVABILITY_AUTH_ENABLED=true/OBSERVABILITY_AUTH_ENABLED=false/' .env
+sed -i 's#PROMETHEUS_WRITE_URL=https://observability.karimaouaouda.space/prometheus/write#PROMETHEUS_WRITE_URL=http://127.0.0.1:9090/api/v1/write#' .env
+sed -i 's#LOKI_WRITE_URL=https://observability.karimaouaouda.space/loki/push#LOKI_WRITE_URL=http://127.0.0.1:3100/loki/api/v1/push#' .env
+out3=$tmp/out3
+PROJECT_ROOT=$PWD sh scripts/render-config.sh "$out3"
+assert_not_contains 'omits Basic Auth when disabled' "$out3/10-outputs.alloy" 'basic_auth'
+
 finish

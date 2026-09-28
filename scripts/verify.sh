@@ -31,10 +31,11 @@ fi
 
 username=$(config_get "$parsed" OBSERVABILITY_USERNAME)
 password=$(config_get "$parsed" OBSERVABILITY_PASSWORD)
-if ! check_endpoint_code Prometheus "$(curl_endpoint_status "$(config_get "$parsed" PROMETHEUS_WRITE_URL)" "$username" "$password")"; then
+auth_enabled=$(config_get "$parsed" OBSERVABILITY_AUTH_ENABLED)
+if ! check_endpoint_code Prometheus "$(curl_endpoint_status "$(config_get "$parsed" PROMETHEUS_WRITE_URL)" "$username" "$password" "$auth_enabled")"; then
     if [ "${VERIFY_EXTERNAL_STRICT:-1}" = 1 ]; then failed=1; else warn 'Prometheus connectivity is external and did not invalidate the local deployment.'; fi
 fi
-if ! check_endpoint_code Loki "$(curl_endpoint_status "$(config_get "$parsed" LOKI_WRITE_URL)" "$username" "$password")"; then
+if ! check_endpoint_code Loki "$(curl_endpoint_status "$(config_get "$parsed" LOKI_WRITE_URL)" "$username" "$password" "$auth_enabled")"; then
     if [ "${VERIFY_EXTERNAL_STRICT:-1}" = 1 ]; then failed=1; else warn 'Loki connectivity is external and did not invalidate the local deployment.'; fi
 fi
 

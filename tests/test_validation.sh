@@ -29,4 +29,25 @@ else
 fi
 assert_not_contains 'validation never prints password' "$tmp/good" 'test-secret'
 
+cp .env.example .env
+sed -i 's#GRAFANA_URL=https://grafana.karimaouaouda.space#GRAFANA_URL=http://127.0.0.1:3000#' .env
+sed -i 's#PROMETHEUS_WRITE_URL=https://observability.karimaouaouda.space/prometheus/write#PROMETHEUS_WRITE_URL=http://127.0.0.1:9090/api/v1/write#' .env
+sed -i 's#LOKI_WRITE_URL=https://observability.karimaouaouda.space/loki/push#LOKI_WRITE_URL=http://127.0.0.1:3100/loki/api/v1/push#' .env
+sed -i 's/OBSERVABILITY_AUTH_ENABLED=true/OBSERVABILITY_AUTH_ENABLED=false/' .env
+sed -i 's/OBSERVABILITY_USERNAME=my-vps-01/OBSERVABILITY_USERNAME=/' .env
+sed -i 's/OBSERVABILITY_PASSWORD=CHANGE_ME/OBSERVABILITY_PASSWORD=/' .env
+if PROJECT_ROOT=$PWD SKIP_PLATFORM_CHECKS=1 SKIP_CONNECTIVITY_CHECKS=1 SKIP_RUNTIME_CHECKS=1 sh check-configs.sh >"$tmp/loopback" 2>&1; then
+    pass 'loopback HTTP endpoints without Basic Auth are valid'
+else
+    fail 'loopback HTTP endpoints without Basic Auth are valid'
+    sed -n '1,160p' "$tmp/loopback" >&2
+fi
+
+sed -i 's#GRAFANA_URL=http://127.0.0.1:3000#GRAFANA_URL=http://grafana.example.com#' .env
+if PROJECT_ROOT=$PWD SKIP_PLATFORM_CHECKS=1 SKIP_CONNECTIVITY_CHECKS=1 SKIP_RUNTIME_CHECKS=1 sh check-configs.sh >"$tmp/remote-http" 2>&1; then
+    fail 'remote plain HTTP endpoint is rejected'
+else
+    pass 'remote plain HTTP endpoint is rejected'
+fi
+
 finish
