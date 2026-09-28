@@ -1,0 +1,9 @@
+services:
+  backend:
+    image: my-app
+    environment:
+      OTEL_SERVICE_NAME: my-app-backend
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=my-app,deployment.environment.name=production
+    labels:
+      observability.app: my-app
+      observability.service: backend
