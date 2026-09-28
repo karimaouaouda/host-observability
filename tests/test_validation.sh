@@ -43,11 +43,25 @@ else
     sed -n '1,160p' "$tmp/loopback" >&2
 fi
 
+sed -i 's/TLS_INSECURE_SKIP_VERIFY=false/TLS_INSECURE_SKIP_VERIFY=true/' .env
+if PROJECT_ROOT=$PWD SKIP_PLATFORM_CHECKS=1 SKIP_CONNECTIVITY_CHECKS=1 SKIP_RUNTIME_CHECKS=1 sh check-configs.sh >"$tmp/loopback-insecure-tls" 2>&1; then
+    pass 'loopback endpoints may explicitly disable TLS verification'
+else
+    fail 'loopback endpoints may explicitly disable TLS verification'
+fi
+
 sed -i 's#GRAFANA_URL=http://127.0.0.1:3000#GRAFANA_URL=http://grafana.example.com#' .env
 if PROJECT_ROOT=$PWD SKIP_PLATFORM_CHECKS=1 SKIP_CONNECTIVITY_CHECKS=1 SKIP_RUNTIME_CHECKS=1 sh check-configs.sh >"$tmp/remote-http" 2>&1; then
     fail 'remote plain HTTP endpoint is rejected'
 else
     pass 'remote plain HTTP endpoint is rejected'
+fi
+
+sed -i 's#GRAFANA_URL=http://grafana.example.com#GRAFANA_URL=https://grafana.example.com#' .env
+if PROJECT_ROOT=$PWD SKIP_PLATFORM_CHECKS=1 SKIP_CONNECTIVITY_CHECKS=1 SKIP_RUNTIME_CHECKS=1 sh check-configs.sh >"$tmp/remote-insecure-tls" 2>&1; then
+    fail 'remote endpoint cannot disable TLS verification'
+else
+    pass 'remote endpoint cannot disable TLS verification'
 fi
 
 finish

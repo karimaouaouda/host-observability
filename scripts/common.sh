@@ -105,7 +105,11 @@ validate_global_config() (
     for key in TLS_INSECURE_SKIP_VERIFY ENABLE_HOST_METRICS ENABLE_DOCKER_METRICS ENABLE_DOCKER_LOGS ENABLE_NGINX_LOGS ENABLE_BEYLA BEYLA_CONTAINERS_ONLY; do
         validate_bool "$key" "$(config_get "$parsed" "$key")" || failed=1
     done
-    [ "$(config_get "$parsed" TLS_INSECURE_SKIP_VERIFY)" = false ] || { error 'TLS_INSECURE_SKIP_VERIFY=true is rejected for production safety'; failed=1; }
+    if is_true "$(config_get "$parsed" TLS_INSECURE_SKIP_VERIFY)"; then
+        for key in GRAFANA_URL PROMETHEUS_WRITE_URL LOKI_WRITE_URL; do
+            is_loopback_url "$(config_get "$parsed" "$key")" || { error 'TLS_INSECURE_SKIP_VERIFY=true is allowed only when all central URLs are loopback'; failed=1; }
+        done
+    fi
     if is_true "$(config_get "$parsed" ENABLE_BEYLA)"; then
         validate_open_ports "$(config_get "$parsed" BEYLA_OPEN_PORTS)" || { error 'BEYLA_OPEN_PORTS is invalid or dangerously broad'; failed=1; }
     fi

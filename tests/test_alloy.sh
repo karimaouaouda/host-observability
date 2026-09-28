@@ -29,6 +29,7 @@ else
 fi
 
 cp examples/central-vps.example.env .env
+sed -i 's/TLS_INSECURE_SKIP_VERIFY=false/TLS_INSECURE_SKIP_VERIFY=true/' .env
 PROJECT_ROOT=$PWD sh scripts/render-config.sh "$tmp/loopback-rendered" >/dev/null
 export_runtime_environment "$PWD"
 for config in "$tmp/loopback-rendered/"*.alloy; do "$alloy_bin" fmt --write "$config" >/dev/null; done

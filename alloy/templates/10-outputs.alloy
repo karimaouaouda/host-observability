@@ -8,7 +8,7 @@ prometheus.remote_write "central" {
       password = sys.env("OBSERVABILITY_PASSWORD")
     }
     // AUTH_END
-    tls_config { insecure_skip_verify = false }
+    tls_config { insecure_skip_verify = @TLS_INSECURE_SKIP_VERIFY@ }
   }
 }
 prometheus.relabel "identity" {
@@ -35,6 +35,6 @@ loki.write "central" {
       password = sys.env("OBSERVABILITY_PASSWORD")
     }
     // AUTH_END
-    tls_config { insecure_skip_verify = false }
+    tls_config { insecure_skip_verify = @TLS_INSECURE_SKIP_VERIFY@ }
   }
 }

@@ -4,6 +4,8 @@ Use a unique central Basic Auth credential per VPS and rotate it if that host is
 
 The central VPS may set `OBSERVABILITY_AUTH_ENABLED=false` for direct loopback ingestion. This exception is rejected unless both Prometheus and Loki URLs use `127.0.0.1` or `localhost`. Plain HTTP is likewise rejected for every non-loopback URL.
 
+Disabling TLS certificate verification is restricted to configurations where every central URL is loopback. Prefer `TLS_INSECURE_SKIP_VERIFY=false` for HTTP endpoints and trusted local HTTPS certificates.
+
 ## Docker
 
 The `alloy` account joins the `docker` group when a Docker collector is enabled. Docker socket access is effectively root-equivalent. This is an explicit v1 tradeoff and must be included in host risk reviews.

@@ -17,6 +17,8 @@ OBSERVABILITY_PASSWORD=
 
 Confirm the ports and paths against the central stack. Prometheus must have its remote-write receiver enabled. The validator permits plain HTTP only for `127.0.0.1` or `localhost`, and permits disabled Basic Auth only when both ingestion endpoints are loopback URLs. This exception never permits unencrypted remote transport.
 
+`TLS_INSECURE_SKIP_VERIFY=true` is also accepted only when Grafana, Prometheus, and Loki all use loopback URLs. It is unnecessary for plain HTTP, but can be used for a self-signed loopback HTTPS listener. It remains rejected if any central URL is remote.
+
 Collectors are controlled with explicit `true` or `false` values. Beyla port discovery must be bounded to application ports. `1-65535` is rejected.
 
 Configuration files use literal `KEY=value` records. They are not shell scripts: quoting has no special meaning, variables are not expanded, and commands are never evaluated. Do not surround a value with quotes unless the quote characters are intended to be part of the value.
