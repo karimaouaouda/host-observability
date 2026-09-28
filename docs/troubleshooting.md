@@ -18,5 +18,6 @@ sudo sh check-configs.sh
 - **Database connection refused:** expose the container port on a unique `127.0.0.1` host port and check the DSN/address. Alloy does not restart databases.
 - **Alloy validate failure:** run `sudo alloy validate /etc/alloy/per-host-observe` and compare the reported component with the generated source comment.
 - **Unhealthy component:** open the local UI through an SSH tunnel or inspect the journal; never expose port 12345 publicly.
+- **Service active but port 12345 initially refuses connections:** systemd can report `active` before Alloy finishes initialization and binds its HTTP listener. Verification retries both health endpoints for up to 90 seconds by default. Override only when needed with `VERIFY_TIMEOUT_SECONDS` and `VERIFY_RETRY_INTERVAL_SECONDS`.
 
 An empty authenticated POST used by preflight can return HTTP 400; this indicates that TLS, routing, and authentication likely succeeded while the intentionally empty protocol payload was rejected.

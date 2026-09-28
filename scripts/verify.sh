@@ -10,14 +10,33 @@ config_parse "$PROJECT_ROOT/.env" "$GLOBAL_KEYS" "$parsed" || exit 1
 
 if systemctl is-active --quiet alloy; then ok 'Alloy service is active'; else error 'Alloy service is not active'; failed=1; fi
 address=$(config_get "$parsed" ALLOY_HTTP_ADDRESS)
-for endpoint in ready healthy; do
-    if curl -fsS --connect-timeout 3 "http://$address/-/$endpoint" >/dev/null; then
-        ok "Alloy $endpoint endpoint passed"
-    else
-        error "Alloy $endpoint endpoint failed"
-        failed=1
+verify_timeout=${VERIFY_TIMEOUT_SECONDS:-90}
+retry_interval=${VERIFY_RETRY_INTERVAL_SECONDS:-2}
+case $verify_timeout in *[!0-9]*|'') die 'VERIFY_TIMEOUT_SECONDS must be a non-negative integer' ;; esac
+case $retry_interval in *[!0-9]*|'') die 'VERIFY_RETRY_INTERVAL_SECONDS must be a non-negative integer' ;; esac
+started_at=$(date +%s)
+http_ready=false
+info "Waiting up to $verify_timeout seconds for Alloy's local HTTP endpoints"
+while systemctl is-active --quiet alloy; do
+    ready_ok=false
+    healthy_ok=false
+    curl -fsS --connect-timeout 3 "http://$address/-/ready" >/dev/null 2>&1 && ready_ok=true
+    curl -fsS --connect-timeout 3 "http://$address/-/healthy" >/dev/null 2>&1 && healthy_ok=true
+    if [ "$ready_ok" = true ] && [ "$healthy_ok" = true ]; then
+        http_ready=true
+        break
     fi
+    now=$(date +%s)
+    [ $((now - started_at)) -lt "$verify_timeout" ] || break
+    sleep "$retry_interval"
 done
+if [ "$http_ready" = true ]; then
+    ok 'Alloy ready endpoint passed'
+    ok 'Alloy healthy endpoint passed'
+else
+    error "Alloy did not become ready and healthy within $verify_timeout seconds"
+    failed=1
+fi
 
 if is_true "$(config_get "$parsed" ENABLE_DOCKER_METRICS)" || is_true "$(config_get "$parsed" ENABLE_DOCKER_LOGS)"; then
     if runuser -u alloy -- docker info >/dev/null 2>&1; then ok 'Alloy can access Docker'; else error 'The alloy user cannot access Docker'; failed=1; fi
