@@ -1,0 +1,12 @@
+.env
+instances/postgres/*.env
+instances/mysql/*.env
+instances/redis/*.env
+!instances/postgres/.gitkeep
+!instances/mysql/.gitkeep
+!instances/redis/.gitkeep
+alloy/generated/*
+!alloy/generated/.gitkeep
+*.local
+*.tmp
+.DS_Store
